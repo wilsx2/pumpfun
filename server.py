@@ -34,6 +34,48 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
+@app.route('/', methods=['GET'])
+def serve_example():
+    """Serve the example HTML page with server URL injected."""
+    try:
+        # Read the example.html file
+        html_path = os.path.join(os.path.dirname(__file__), 'example.html')
+        with open(html_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Get the server URL from the request
+        # Use request.url_root to get the base URL (e.g., http://localhost:5000/)
+        server_url = request.url_root.rstrip('/')
+        
+        # Replace the placeholder or hardcoded server URL in the HTML
+        # We'll inject it as a script variable before the PumpFunClient initialization
+        injection_script = f'''
+    <script>
+        // Server URL injected by server
+        window.SERVER_URL = '{server_url}';
+    </script>
+'''
+        
+        # Insert the script right before the closing </head> tag
+        html_content = html_content.replace('</head>', injection_script + '</head>')
+        
+        return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    except Exception as e:
+        return jsonify({'error': f'Failed to serve page: {str(e)}'}), 500
+
+
+@app.route('/pumpfun-client.js', methods=['GET'])
+def serve_client_js():
+    """Serve the pumpfun-client.js file."""
+    try:
+        js_path = os.path.join(os.path.dirname(__file__), 'pumpfun-client.js')
+        with open(js_path, 'r', encoding='utf-8') as f:
+            js_content = f.read()
+        return js_content, 200, {'Content-Type': 'application/javascript; charset=utf-8'}
+    except Exception as e:
+        return jsonify({'error': f'Failed to serve JavaScript file: {str(e)}'}), 500
+
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""

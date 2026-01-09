@@ -211,26 +211,12 @@
             display: none;
         }
 
-        .server-url {
-            margin-bottom: 20px;
-        }
-
-        .server-url input {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🚀 PumpFun Token Creator</h1>
         <p class="subtitle">Create your own token on PumpFun using Phantom wallet</p>
-
-        <!-- Server URL Configuration -->
-        <div class="form-group server-url">
-            <label for="serverUrl">Server URL:</label>
-            <input type="text" id="serverUrl" value="http://localhost:5000" placeholder="http://localhost:5000">
-        </div>
 
         <!-- Wallet Connection Section -->
         <div class="wallet-section">
@@ -369,11 +355,29 @@
     <script src="pumpfun-client.js"></script>
 
     <script>
-        // Initialize client
-        let client = new PumpFunClient('http://localhost:5000');
+        // Wait for all dependencies to be loaded
+        if (typeof PumpFunClient === 'undefined') {
+            console.error('PumpFunClient is not defined. Check console for errors.');
+            // Try to provide helpful error message
+            if (typeof solanaWeb3 === 'undefined') {
+                console.error('solanaWeb3 is also not defined. The Solana Web3.js library may not have loaded correctly.');
+            }
+            if (typeof bs58 === 'undefined') {
+                console.error('bs58 is also not defined. The bs58 library may not have loaded correctly.');
+            }
+        }
+        
+        // Initialize client with server URL from server
+        const serverUrl = window.SERVER_URL || 'http://localhost:5000';
+        let client;
+        
+        if (typeof PumpFunClient !== 'undefined') {
+            client = new PumpFunClient(serverUrl);
+        } else {
+            console.error('Cannot initialize PumpFunClient - class is not defined');
+        }
 
         // DOM elements
-        const serverUrlInput = document.getElementById('serverUrl');
         const connectBtn = document.getElementById('connectBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
         const walletStatus = document.getElementById('walletStatus');
@@ -386,11 +390,6 @@
         const result = document.getElementById('result');
         const fileInput = document.getElementById('imageFile');
         const fileInfo = document.getElementById('fileInfo');
-
-        // Update server URL when changed
-        serverUrlInput.addEventListener('change', () => {
-            client = new PumpFunClient(serverUrlInput.value);
-        });
 
         // File input handler
         fileInput.addEventListener('change', (e) => {
@@ -422,13 +421,13 @@
                 createBtn.disabled = false;
                 
                 // Check server health
-                console.log('Checking server health at:', serverUrlInput.value);
+                console.log('Checking server health at:', serverUrl);
                 try {
                     const health = await client.checkHealth();
                     console.log('Server health check passed:', health);
                 } catch (error) {
                     console.error('Server health check failed:', error);
-                    showResult('error', `Warning: Could not reach server at ${serverUrlInput.value}. Make sure the server is running. Error: ${error.message}`);
+                    showResult('error', `Warning: Could not reach server at ${serverUrl}. Make sure the server is running. Error: ${error.message}`);
                 }
             } catch (error) {
                 console.error('Wallet connection error:', error);

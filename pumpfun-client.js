@@ -13,6 +13,32 @@
 (function(global) {
     'use strict';
 
+    // Check for required dependencies - but don't throw immediately, allow the class to be defined
+    // The actual methods will check and throw errors when called if dependencies are missing
+    if (typeof solanaWeb3 === 'undefined') {
+        console.error('PumpFunClient: solanaWeb3 is not defined. Make sure @solana/web3.js is loaded before this script.');
+        // Try to find it under a different name or wait for it
+        if (typeof window !== 'undefined') {
+            // Check common alternative names
+            if (window.solanaWeb3) {
+                global.solanaWeb3 = window.solanaWeb3;
+            } else if (window.solana && window.solana.web3) {
+                global.solanaWeb3 = window.solana.web3;
+            } else {
+                // Try to access it after a short delay (for async loading)
+                setTimeout(function() {
+                    if (typeof solanaWeb3 !== 'undefined' && typeof PumpFunClient !== 'undefined') {
+                        console.log('PumpFunClient: solanaWeb3 loaded successfully');
+                    }
+                }, 100);
+            }
+        }
+    }
+
+    if (typeof bs58 === 'undefined') {
+        console.error('PumpFunClient: bs58 is not defined. Make sure bs58 is loaded before this script.');
+    }
+
     /**
      * PumpFun Client Class
      * Handles token creation, transaction signing, and broadcasting
@@ -35,6 +61,11 @@
          * @throws {Error} - If Phantom wallet is not available
          */
         async connectWallet() {
+            // Check for solanaWeb3 dependency
+            if (typeof solanaWeb3 === 'undefined') {
+                throw new Error('solanaWeb3 is not available. Make sure @solana/web3.js is loaded: <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>');
+            }
+            
             // Try multiple ways to find Phantom wallet
             let solana = null;
             
@@ -170,6 +201,14 @@
         async signTransaction(unsignedTxBase64, mintKeypairBase58) {
             if (!this.isConnected()) {
                 throw new Error('Wallet not connected. Call connectWallet() first.');
+            }
+
+            // Check for dependencies
+            if (typeof solanaWeb3 === 'undefined') {
+                throw new Error('solanaWeb3 is not available. Make sure @solana/web3.js is loaded.');
+            }
+            if (typeof bs58 === 'undefined') {
+                throw new Error('bs58 is not available. Make sure bs58 is loaded.');
             }
 
             // Decode the unsigned transaction
