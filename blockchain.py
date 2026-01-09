@@ -81,7 +81,7 @@ def sign_tx(tx: VersionedTransaction, mint_keypair: Keypair, user_keypair: Keypa
     signed_tx = VersionedTransaction(tx.message, [user_keypair, mint_keypair])
     return signed_tx
 
-def broadcast_tx(tx: VersionedTransaction) -> None:
+def broadcast_tx(tx: VersionedTransaction) -> str | None:
     commitment = CommitmentLevel.Confirmed
     config = RpcSendTransactionConfig(preflight_commitment=commitment)
     txPayload = SendVersionedTransaction(tx, config)
@@ -123,6 +123,7 @@ def broadcast_tx(tx: VersionedTransaction) -> None:
     txSignature = response_json['result']
     print(f'✅ Transaction successful!')
     print(f'Transaction: https://solscan.io/tx/{txSignature}')
+    return txSignature
 
 if __name__ == "__main__":
     with open('./example.png', 'rb') as f:
