@@ -510,12 +510,17 @@
                 }, updateProgress);
 
                 progress.classList.remove('active');
+                
                 showResult('success', {
                     title: 'Token Created Successfully! 🎉',
                     signature: txResult.signature,
                     url: txResult.transaction_url,
                     mint: txResult.mint_public_key
                 });
+                
+                // Automatically open pump.fun link in a new tab
+                const pumpFunUrl = `https://pump.fun/?tab=createdTimestamp`;
+                window.open(pumpFunUrl, '_blank');
             } catch (error) {
                 progress.classList.remove('active');
                 showResult('error', `Error: ${error.message}`);
