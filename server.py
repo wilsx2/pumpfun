@@ -44,8 +44,12 @@ def serve_example():
             html_content = f.read()
         
         # Get the server URL from the request
-        # Use request.url_root to get the base URL (e.g., http://localhost:5000/)
-        server_url = request.url_root.rstrip('/')
+        # Check for forwarded protocol header (Railway sets this)
+        forwarded_proto = request.headers.get('X-Forwarded-Proto', '')
+        scheme = 'https' if forwarded_proto == 'https' else request.scheme
+        
+        # Build the server URL with the correct scheme
+        server_url = f"{scheme}://{request.host}".rstrip('/')
         
         # Replace the placeholder or hardcoded server URL in the HTML
         # We'll inject it as a script variable before the PumpFunClient initialization
