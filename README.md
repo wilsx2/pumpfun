@@ -1,6 +1,6 @@
 # PumpFun Token Creator
 
-A Python Flask server and JavaScript client for creating tokens on PumpFun using Solana blockchain.
+A Python Flask server and JavaScript client for creating tokens on PumpFun using Solana blockchain. Written by AI using Cursor.
 
 ## Features
 
