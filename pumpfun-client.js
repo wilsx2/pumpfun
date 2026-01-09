@@ -35,16 +35,35 @@
          * @throws {Error} - If Phantom wallet is not available
          */
         async connectWallet() {
-            // Wait for Phantom wallet to inject if not immediately available
-            let solana = window.solana;
+            // Try multiple ways to find Phantom wallet
+            let solana = null;
             
-            // If not found immediately, wait a bit for injection
-            if (!solana) {
-                await new Promise(resolve => setTimeout(resolve, 100));
+            // Method 1: Check window.solana directly
+            if (window.solana && (window.solana.isPhantom || typeof window.solana.connect === 'function')) {
                 solana = window.solana;
             }
+            // Method 2: Check window.phantom.solana
+            else if (window.phantom && window.phantom.solana) {
+                solana = window.phantom.solana;
+            }
+            // Method 3: Wait a bit and try again (for delayed injection)
+            else {
+                // Wait up to 1 second for Phantom to inject, checking every 100ms
+                for (let i = 0; i < 10; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    if (window.solana && (window.solana.isPhantom || typeof window.solana.connect === 'function')) {
+                        solana = window.solana;
+                        break;
+                    }
+                    if (window.phantom && window.phantom.solana) {
+                        solana = window.phantom.solana;
+                        break;
+                    }
+                }
+            }
             
-            // Check if solana exists and has required methods (more reliable than isPhantom)
+            // Check if solana exists and has required methods
             if (!solana || typeof solana.connect !== 'function') {
                 throw new Error('Phantom wallet not found. Please install Phantom extension.');
             }
