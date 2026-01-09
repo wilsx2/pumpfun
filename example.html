@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PumpFun Token Creator - Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .wallet-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .wallet-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .wallet-address {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #666;
+            word-break: break-all;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        input[type="file"] {
+            padding: 8px;
+        }
+
+        .file-info {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .progress {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .progress.active {
+            display: block;
+        }
+
+        .progress-message {
+            color: #0066cc;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            display: block;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            display: block;
+        }
+
+        .result h3 {
+            margin-bottom: 10px;
+        }
+
+        .result a {
+            color: #0066cc;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .result a:hover {
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .server-url {
+            margin-bottom: 20px;
+        }
+
+        .server-url input {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 PumpFun Token Creator</h1>
+        <p class="subtitle">Create your own token on PumpFun using Phantom wallet</p>
+
+        <!-- Server URL Configuration -->
+        <div class="form-group server-url">
+            <label for="serverUrl">Server URL:</label>
+            <input type="text" id="serverUrl" value="http://localhost:5000" placeholder="http://localhost:5000">
+        </div>
+
+        <!-- Wallet Connection Section -->
+        <div class="wallet-section">
+            <div class="wallet-status">
+                <div>
+                    <strong>Wallet Status:</strong>
+                    <span id="walletStatus">Not Connected</span>
+                </div>
+                <button id="connectBtn" class="btn">Connect Phantom</button>
+            </div>
+            <div id="walletAddress" class="wallet-address hidden"></div>
+            <button id="disconnectBtn" class="btn btn-secondary hidden" style="margin-top: 10px;">Disconnect</button>
+        </div>
+
+        <!-- Token Creation Form -->
+        <form id="tokenForm">
+            <div class="form-group">
+                <label for="tokenName">Token Name *</label>
+                <input type="text" id="tokenName" required placeholder="My Awesome Token">
+            </div>
+
+            <div class="form-group">
+                <label for="tokenSymbol">Token Symbol *</label>
+                <input type="text" id="tokenSymbol" required placeholder="MAT" maxlength="10">
+            </div>
+
+            <div class="form-group">
+                <label for="tokenDescription">Description</label>
+                <textarea id="tokenDescription" placeholder="A brief description of your token..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Initial Amount (SOL) <span style="color: #999; font-weight: normal;">(optional)</span></label>
+                <input type="number" id="amount" step="0.001" min="0" placeholder="0.0 (leave empty for no initial purchase)">
+            </div>
+
+            <div class="form-group">
+                <label for="imageFile">Token Image *</label>
+                <input type="file" id="imageFile" accept="image/*" required>
+                <div class="file-info" id="fileInfo"></div>
+            </div>
+
+            <button type="submit" id="createBtn" class="btn" disabled>Create Token</button>
+        </form>
+
+        <!-- Progress Indicator -->
+        <div id="progress" class="progress">
+            <div class="progress-message" id="progressMessage">Processing...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- Result Display -->
+        <div id="result" class="result"></div>
+    </div>
+
+    <!-- Load required libraries from CDN -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <!-- bs58 - inline implementation to avoid CDN issues -->
+    <script>
+        // Simple base58 implementation
+        (function(global) {
+            const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+            const BASE = 58;
+            
+            function base58Encode(buffer) {
+                if (buffer.length === 0) return '';
+                
+                const digits = [0];
+                for (let i = 0; i < buffer.length; i++) {
+                    let carry = buffer[i];
+                    for (let j = 0; j < digits.length; j++) {
+                        carry += digits[j] << 8;
+                        digits[j] = carry % BASE;
+                        carry = Math.floor(carry / BASE);
+                    }
+                    while (carry > 0) {
+                        digits.push(carry % BASE);
+                        carry = Math.floor(carry / BASE);
+                    }
+                }
+                
+                let string = '';
+                for (let k = 0; k < buffer.length && buffer[k] === 0; k++) {
+                    string += ALPHABET[0];
+                }
+                for (let q = digits.length - 1; q >= 0; q--) {
+                    string += ALPHABET[digits[q]];
+                }
+                return string;
+            }
+            
+            function base58Decode(string) {
+                if (string.length === 0) return new Uint8Array(0);
+                
+                const bytes = [0];
+                for (let i = 0; i < string.length; i++) {
+                    const value = ALPHABET.indexOf(string[i]);
+                    if (value === -1) throw new Error('Invalid base58 character');
+                    
+                    let carry = value;
+                    for (let j = 0; j < bytes.length; j++) {
+                        carry += bytes[j] * BASE;
+                        bytes[j] = carry & 0xff;
+                        carry >>= 8;
+                    }
+                    while (carry > 0) {
+                        bytes.push(carry & 0xff);
+                        carry >>= 8;
+                    }
+                }
+                
+                for (let k = 0; k < string.length && string[k] === ALPHABET[0]; k++) {
+                    bytes.push(0);
+                }
+                
+                return new Uint8Array(bytes.reverse());
+            }
+            
+            global.bs58 = {
+                encode: function(buffer) {
+                    if (buffer instanceof Uint8Array) {
+                        return base58Encode(buffer);
+                    }
+                    return base58Encode(new Uint8Array(buffer));
+                },
+                decode: function(string) {
+                    return base58Decode(string);
+                }
+            };
+        })(window);
+    </script>
+    
+    <!-- Load PumpFun Client -->
+    <script src="pumpfun-client.js"></script>
+
+    <script>
+        // Initialize client
+        let client = new PumpFunClient('http://localhost:5000');
+
+        // DOM elements
+        const serverUrlInput = document.getElementById('serverUrl');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const walletStatus = document.getElementById('walletStatus');
+        const walletAddress = document.getElementById('walletAddress');
+        const tokenForm = document.getElementById('tokenForm');
+        const createBtn = document.getElementById('createBtn');
+        const progress = document.getElementById('progress');
+        const progressMessage = document.getElementById('progressMessage');
+        const progressFill = document.getElementById('progressFill');
+        const result = document.getElementById('result');
+        const fileInput = document.getElementById('imageFile');
+        const fileInfo = document.getElementById('fileInfo');
+
+        // Update server URL when changed
+        serverUrlInput.addEventListener('change', () => {
+            client = new PumpFunClient(serverUrlInput.value);
+        });
+
+        // File input handler
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                fileInfo.textContent = `Selected: ${file.name} (${sizeMB} MB)`;
+            } else {
+                fileInfo.textContent = '';
+            }
+        });
+
+        // Connect wallet
+        connectBtn.addEventListener('click', async () => {
+            try {
+                connectBtn.disabled = true;
+                connectBtn.textContent = 'Connecting...';
+                
+                console.log('Connecting to wallet...');
+                const connection = await client.connectWallet();
+                console.log('Wallet connected:', connection);
+                
+                walletStatus.textContent = 'Connected';
+                walletStatus.style.color = '#28a745';
+                walletAddress.textContent = `Address: ${connection.publicKey}`;
+                walletAddress.classList.remove('hidden');
+                connectBtn.classList.add('hidden');
+                disconnectBtn.classList.remove('hidden');
+                createBtn.disabled = false;
+                
+                // Check server health
+                console.log('Checking server health at:', serverUrlInput.value);
+                try {
+                    const health = await client.checkHealth();
+                    console.log('Server health check passed:', health);
+                } catch (error) {
+                    console.error('Server health check failed:', error);
+                    showResult('error', `Warning: Could not reach server at ${serverUrlInput.value}. Make sure the server is running. Error: ${error.message}`);
+                }
+            } catch (error) {
+                console.error('Wallet connection error:', error);
+                showResult('error', `Failed to connect wallet: ${error.message}`);
+                connectBtn.disabled = false;
+                connectBtn.textContent = 'Connect Phantom';
+            }
+        });
+
+        // Disconnect wallet
+        disconnectBtn.addEventListener('click', async () => {
+            try {
+                await client.disconnectWallet();
+                walletStatus.textContent = 'Not Connected';
+                walletStatus.style.color = '#dc3545';
+                walletAddress.classList.add('hidden');
+                connectBtn.classList.remove('hidden');
+                disconnectBtn.classList.add('hidden');
+                createBtn.disabled = true;
+            } catch (error) {
+                showResult('error', `Failed to disconnect: ${error.message}`);
+            }
+        });
+
+        // Handle form submission
+        tokenForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!client.isConnected()) {
+                showResult('error', 'Please connect your Phantom wallet first.');
+                return;
+            }
+
+            // Get form values
+            const name = document.getElementById('tokenName').value.trim();
+            const symbol = document.getElementById('tokenSymbol').value.trim().toUpperCase();
+            const description = document.getElementById('tokenDescription').value.trim();
+            const amountInput = document.getElementById('amount').value.trim();
+            const amount = amountInput === '' ? 0 : parseFloat(amountInput);
+            const imageFile = document.getElementById('imageFile').files[0];
+
+            // Validate required fields
+            if (!name || !symbol || !imageFile) {
+                showResult('error', 'Please fill in all required fields: name, symbol, and image.');
+                return;
+            }
+
+            // Validate amount if provided
+            if (amountInput !== '' && (isNaN(amount) || amount < 0)) {
+                showResult('error', 'Amount must be a valid non-negative number.');
+                return;
+            }
+
+            // Reset UI
+            result.className = 'result';
+            result.innerHTML = '';
+            progress.classList.add('active');
+            createBtn.disabled = true;
+
+            // Progress callback
+            const updateProgress = (step, message) => {
+                progressMessage.textContent = message;
+                const progressMap = {
+                    'creating': 25,
+                    'signing': 50,
+                    'broadcasting': 75,
+                    'complete': 100,
+                    'error': 0
+                };
+                progressFill.style.width = `${progressMap[step] || 0}%`;
+            };
+
+            try {
+                const txResult = await client.createToken({
+                    name,
+                    symbol,
+                    description,
+                    image: imageFile,
+                    amount
+                }, updateProgress);
+
+                progress.classList.remove('active');
+                showResult('success', {
+                    title: 'Token Created Successfully! 🎉',
+                    signature: txResult.signature,
+                    url: txResult.transaction_url,
+                    mint: txResult.mint_public_key
+                });
+            } catch (error) {
+                progress.classList.remove('active');
+                showResult('error', `Error: ${error.message}`);
+            } finally {
+                createBtn.disabled = false;
+            }
+        });
+
+        // Show result
+        function showResult(type, data) {
+            result.className = `result ${type}`;
+            
+            if (type === 'success') {
+                result.innerHTML = `
+                    <h3>${data.title}</h3>
+                    <p><strong>Transaction Signature:</strong><br>
+                    <code style="font-size: 11px; word-break: break-all;">${data.signature}</code></p>
+                    <p><strong>Mint Public Key:</strong><br>
+                    <code style="font-size: 11px; word-break: break-all;">${data.mint}</code></p>
+                    <p><a href="${data.url}" target="_blank">View on Solscan →</a></p>
+                `;
+            } else {
+                result.innerHTML = `<h3>Error</h3><p>${data}</p>`;
+            }
+        }
+
+        // Check if wallet is already connected on page load
+        window.addEventListener('load', async () => {
+            if (window.solana && window.solana.isPhantom) {
+                try {
+                    const isConnected = await window.solana.isConnected();
+                    if (isConnected) {
+                        // Try to reconnect
+                        connectBtn.click();
+                    }
+                } catch (error) {
+                    // Wallet not connected, ignore
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

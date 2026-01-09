@@ -7,13 +7,32 @@ Also provides endpoints for creating and broadcasting transactions.
 import os
 import base64
 import requests
+import base58
 from flask import Flask, request, jsonify, Response
+from flask_cors import CORS, cross_origin
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.transaction import VersionedTransaction
 from blockchain import create_tx, broadcast_tx
 
 app = Flask(__name__)
+# Enable CORS for all routes with explicit configuration
+CORS(app, 
+     resources={
+         r"/*": {
+             "origins": "*",
+             "methods": ["GET", "POST", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization"]
+         }
+     })
+
+# Ensure CORS headers are added to all responses, including errors
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -25,7 +44,7 @@ def health_check():
 def create_transaction():
     """
     Create an unsigned transaction for token creation.
-    Accepts: name, symbol, description, image (file), amount, user_public_key
+    Accepts: name, symbol, description, image (file), amount (optional), user_public_key
     Returns: unsigned_tx (base64), mint_keypair (base58), mint_public_key (string)
     """
     # Validate required fields
@@ -38,9 +57,6 @@ def create_transaction():
     if 'image' not in request.files:
         return jsonify({'error': 'Missing required field: image'}), 400
     
-    if 'amount' not in request.form:
-        return jsonify({'error': 'Missing required field: amount'}), 400
-    
     if 'user_public_key' not in request.form:
         return jsonify({'error': 'Missing required field: user_public_key'}), 400
     
@@ -48,7 +64,7 @@ def create_transaction():
     name = request.form.get('name', '').strip()
     symbol = request.form.get('symbol', '').strip()
     description = request.form.get('description', '').strip() if 'description' in request.form else ''
-    amount = request.form.get('amount', '').strip()
+    amount = request.form.get('amount', '0').strip()  # Default to 0 if not provided
     user_public_key_str = request.form.get('user_public_key', '').strip()
     image_file = request.files['image']
     
@@ -59,16 +75,19 @@ def create_transaction():
     if not symbol:
         return jsonify({'error': 'Symbol cannot be empty'}), 400
     
-    if not amount:
-        return jsonify({'error': 'Amount cannot be empty'}), 400
-    
     if not user_public_key_str:
         return jsonify({'error': 'User public key cannot be empty'}), 400
     
-    try:
-        amount_float = float(amount)
-    except ValueError:
-        return jsonify({'error': 'Amount must be a valid number'}), 400
+    # Amount is optional - default to 0 if empty
+    if not amount:
+        amount_float = 0.0
+    else:
+        try:
+            amount_float = float(amount)
+            if amount_float < 0:
+                return jsonify({'error': 'Amount cannot be negative'}), 400
+        except ValueError:
+            return jsonify({'error': 'Amount must be a valid number'}), 400
     
     try:
         user_public_key = Pubkey.from_string(user_public_key_str)
@@ -76,29 +95,39 @@ def create_transaction():
         return jsonify({'error': f'Invalid user public key: {str(e)}'}), 400
     
     # Read image data
-    image_data = image_file.read()
-    if not image_data:
-        return jsonify({'error': 'Image file is empty'}), 400
-    
-    # Create the transaction
-    result = create_tx(name, symbol, description, image_data, amount_float, user_public_key)
-    
-    if result is None:
-        return jsonify({'error': 'Failed to create transaction'}), 500
-    
-    unsigned_tx, mint_keypair = result
-    
-    # Serialize the transaction and keypair for client
-    tx_bytes = bytes(unsigned_tx)
-    tx_base64 = base64.b64encode(tx_bytes).decode('utf-8')
-    mint_keypair_base58 = mint_keypair.to_base58_string()
-    mint_public_key = str(mint_keypair.pubkey())
-    
-    return jsonify({
-        'unsigned_tx': tx_base64,
-        'mint_keypair': mint_keypair_base58,
-        'mint_public_key': mint_public_key
-    }), 200
+    try:
+        image_data = image_file.read()
+        if not image_data:
+            return jsonify({'error': 'Image file is empty'}), 400
+        
+        # Create the transaction
+        result = create_tx(name, symbol, description, image_data, amount_float, user_public_key)
+        
+        if result is None:
+            return jsonify({'error': 'Failed to create transaction'}), 500
+        
+        unsigned_tx, mint_keypair = result
+        
+        # Serialize the transaction and keypair for client
+        tx_bytes = bytes(unsigned_tx)
+        tx_base64 = base64.b64encode(tx_bytes).decode('utf-8')
+        # Convert full keypair to base58 (64 bytes)
+        # JavaScript Keypair.fromSecretKey() expects the full 64-byte keypair
+        mint_keypair_bytes = bytes(mint_keypair)
+        mint_keypair_base58 = base58.b58encode(mint_keypair_bytes).decode('utf-8')
+        mint_public_key = str(mint_keypair.pubkey())
+        
+        return jsonify({
+            'unsigned_tx': tx_base64,
+            'mint_keypair': mint_keypair_base58,
+            'mint_public_key': mint_public_key
+        }), 200
+    except Exception as e:
+        # Log the error for debugging
+        import traceback
+        print(f"Error creating transaction: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 
 @app.route('/broadcast_tx', methods=['POST'])
