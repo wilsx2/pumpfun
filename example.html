@@ -519,7 +519,7 @@
                 });
                 
                 // Automatically open pump.fun link in a new tab
-                const pumpFunUrl = `https://pump.fun/?tab=createdTimestamp`;
+                const pumpFunUrl = `https://pump.fun/?tab=created_timestamp`;
                 window.open(pumpFunUrl, '_blank');
             } catch (error) {
                 progress.classList.remove('active');
@@ -540,7 +540,8 @@
                     <code style="font-size: 11px; word-break: break-all;">${data.signature}</code></p>
                     <p><strong>Mint Public Key:</strong><br>
                     <code style="font-size: 11px; word-break: break-all;">${data.mint}</code></p>
-                    <p><a href="${data.url}" target="_blank">View on Solscan →</a></p>
+                    <p><a href="${data.url}" target="_blank">View on Solscan</a></p>
+                    <p><a href="https://pump.fun/?tab=created_timestamp" target="_blank">View new on Pump.fun →</a></p>
                 `;
             } else {
                 result.innerHTML = `<h3>Error</h3><p>${data}</p>`;
