@@ -545,7 +545,10 @@
 
         // Check if wallet is already connected on page load
         window.addEventListener('load', async () => {
-            if (window.solana && window.solana.isPhantom) {
+            // Wait a bit for Phantom to inject if needed
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (window.solana && typeof window.solana.isConnected === 'function') {
                 try {
                     const isConnected = await window.solana.isConnected();
                     if (isConnected) {
