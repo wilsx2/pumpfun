@@ -8,6 +8,8 @@ import os
 import base64
 import requests
 import base58
+import uuid
+import time
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS, cross_origin
 from solders.keypair import Keypair
@@ -16,6 +18,21 @@ from solders.transaction import VersionedTransaction
 from blockchain import create_tx, broadcast_tx
 
 app = Flask(__name__)
+
+# In-memory storage for images (token -> {image_data, timestamp})
+# In production, consider using Redis or similar
+image_cache = {}
+IMAGE_CACHE_TTL = 3600  # 1 hour
+
+def cleanup_old_images():
+    """Remove images older than TTL"""
+    current_time = time.time()
+    tokens_to_remove = [
+        token for token, data in image_cache.items()
+        if current_time - data['timestamp'] > IMAGE_CACHE_TTL
+    ]
+    for token in tokens_to_remove:
+        del image_cache[token]
 # Enable CORS for all routes with explicit configuration
 CORS(app, 
      resources={
@@ -51,8 +68,23 @@ def serve_example():
         # Build the server URL with the correct scheme
         server_url = f"{scheme}://{request.host}".rstrip('/')
         
-        # Check for base64 image in query parameters
-        base64_image = request.args.get('image', '')
+        # Check for image token in query parameters
+        image_token = request.args.get('image_token', '')
+        base64_image = None
+        
+        if image_token:
+            # Retrieve image from cache
+            cleanup_old_images()  # Cleanup before retrieval
+            if image_token in image_cache:
+                base64_image = image_cache[image_token]['image_data']
+            # If token not found or expired, base64_image remains None
+        
+        # Escape quotes in base64_image for safe JavaScript injection
+        base64_image_js = 'null'
+        if base64_image:
+            # Escape quotes and newlines for safe JavaScript string
+            escaped_image = base64_image.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
+            base64_image_js = f'"{escaped_image}"'
         
         # Replace the placeholder or hardcoded server URL in the HTML
         # We'll inject it as a script variable before the PumpFunClient initialization
@@ -60,8 +92,8 @@ def serve_example():
     <script>
         // Server URL injected by server
         window.SERVER_URL = '{server_url}';
-        // Base64 image from query parameter (if provided)
-        window.BASE64_IMAGE = {('"' + base64_image + '"') if base64_image else 'null'};
+        // Base64 image from token (if provided)
+        window.BASE64_IMAGE = {base64_image_js};
     </script>
 '''
         
@@ -83,6 +115,44 @@ def serve_client_js():
         return js_content, 200, {'Content-Type': 'application/javascript; charset=utf-8'}
     except Exception as e:
         return jsonify({'error': f'Failed to serve JavaScript file: {str(e)}'}), 500
+
+
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
+    """Accept base64 image via POST and return a token."""
+    try:
+        if not request.is_json:
+            return jsonify({'error': 'Request must be JSON'}), 400
+        
+        data = request.get_json()
+        
+        if 'image' not in data:
+            return jsonify({'error': 'Missing required field: image'}), 400
+        
+        base64_image = data['image']
+        
+        if not base64_image:
+            return jsonify({'error': 'Image cannot be empty'}), 400
+        
+        # Generate a unique token
+        token = str(uuid.uuid4())
+        
+        # Store the image with timestamp
+        image_cache[token] = {
+            'image_data': base64_image,
+            'timestamp': time.time()
+        }
+        
+        # Cleanup old images periodically
+        if len(image_cache) > 100:  # Cleanup when cache gets large
+            cleanup_old_images()
+        
+        return jsonify({
+            'token': token,
+            'status': 'success'
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to upload image: {str(e)}'}), 500
 
 
 @app.route('/health', methods=['GET'])
