@@ -211,12 +211,41 @@
             display: none;
         }
 
+        .image-preview-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .image-preview-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .image-preview {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            margin: 0 auto;
+            display: block;
+        }
+
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Meme Coin Creator</h1>
         <p><a href="https://github.com/wilsx2/pumpfun" target="_blank">View source on GitHub →</a></p>
+
+        <!-- Image Preview Section (shown when base64 image is provided) -->
+        <div id="imagePreviewSection" class="image-preview-section hidden">
+            <h3>Token Image Preview</h3>
+            <img id="imagePreview" class="image-preview" alt="Token image preview">
+        </div>
 
         <!-- Wallet Connection Section -->
         <div class="wallet-section">
@@ -253,7 +282,7 @@
                 <input type="number" id="amount" step="0.001" min="0" placeholder="0.0 (leave empty for no initial purchase)">
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="imageFileGroup">
                 <label for="imageFile">Token Image *</label>
                 <input type="file" id="imageFile" accept="image/*" required>
                 <div class="file-info" id="fileInfo"></div>
@@ -390,6 +419,36 @@
         const result = document.getElementById('result');
         const fileInput = document.getElementById('imageFile');
         const fileInfo = document.getElementById('fileInfo');
+        const imagePreviewSection = document.getElementById('imagePreviewSection');
+        const imagePreview = document.getElementById('imagePreview');
+        const imageFileGroup = document.getElementById('imageFileGroup');
+        
+        // Store base64 image if provided
+        let base64ImageData = window.BASE64_IMAGE || null;
+        
+        // Function to convert base64 string to Blob
+        function base64ToBlob(base64, mimeType = 'image/png') {
+            // Remove data URL prefix if present (e.g., "data:image/png;base64,")
+            const base64Data = base64.includes(',') ? base64.split(',')[1] : base64;
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            return new Blob([byteArray], { type: mimeType });
+        }
+        
+        // Handle base64 image if provided
+        if (base64ImageData) {
+            // Show image preview
+            imagePreview.src = base64ImageData.startsWith('data:') ? base64ImageData : `data:image/png;base64,${base64ImageData}`;
+            imagePreviewSection.classList.remove('hidden');
+            
+            // Hide file input group
+            imageFileGroup.classList.add('hidden');
+            fileInput.removeAttribute('required');
+        }
 
         // File input handler
         fileInput.addEventListener('change', (e) => {
@@ -467,7 +526,33 @@
             const description = document.getElementById('tokenDescription').value.trim();
             const amountInput = document.getElementById('amount').value.trim();
             const amount = amountInput === '' ? 0 : parseFloat(amountInput);
-            const imageFile = document.getElementById('imageFile').files[0];
+            
+            // Get image - either from file input or base64
+            let imageFile;
+            if (base64ImageData) {
+                // Convert base64 to Blob
+                let base64String = base64ImageData;
+                let mimeType = 'image/png'; // default
+                
+                if (base64ImageData.startsWith('data:')) {
+                    // Extract mime type from data URL
+                    const mimeMatch = base64ImageData.match(/data:([^;,]+)/);
+                    if (mimeMatch) {
+                        mimeType = mimeMatch[1];
+                    }
+                    // Extract base64 string (everything after comma)
+                    const commaIndex = base64ImageData.indexOf(',');
+                    if (commaIndex !== -1) {
+                        base64String = base64ImageData.substring(commaIndex + 1);
+                    }
+                }
+                
+                imageFile = base64ToBlob(base64String, mimeType);
+                // Create a File-like object with a name
+                imageFile = new File([imageFile], 'token-image.png', { type: mimeType });
+            } else {
+                imageFile = document.getElementById('imageFile').files[0];
+            }
 
             // Validate required fields
             if (!name || !symbol || !imageFile) {

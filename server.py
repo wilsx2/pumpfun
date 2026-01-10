@@ -51,12 +51,17 @@ def serve_example():
         # Build the server URL with the correct scheme
         server_url = f"{scheme}://{request.host}".rstrip('/')
         
+        # Check for base64 image in query parameters
+        base64_image = request.args.get('image', '')
+        
         # Replace the placeholder or hardcoded server URL in the HTML
         # We'll inject it as a script variable before the PumpFunClient initialization
         injection_script = f'''
     <script>
         // Server URL injected by server
         window.SERVER_URL = '{server_url}';
+        // Base64 image from query parameter (if provided)
+        window.BASE64_IMAGE = {('"' + base64_image + '"') if base64_image else 'null'};
     </script>
 '''
         
