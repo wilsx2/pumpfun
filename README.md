@@ -1,13 +1,16 @@
 # PumpFun Token Creator
 
-A Python Flask server and JavaScript client for creating tokens on PumpFun using Solana blockchain. Written by AI using Cursor.
+A Python Flask server and JavaScript client for creating tokens on PumpFun using Solana blockchain.
 
 ## Features
 
 - Create tokens on PumpFun via API
 - Phantom wallet integration for transaction signing
 - Modular JavaScript client for easy integration
-- Complete example HTML application
+- Complete example HTML application with image preview
+- Image upload and caching functionality
+- Server-side HTML injection for seamless deployment
+- Railway deployment support
 
 ## Server Setup
 
@@ -15,7 +18,10 @@ A Python Flask server and JavaScript client for creating tokens on PumpFun using
 
 - Python 3.8+
 - Flask
+- Flask-CORS
 - Solana Python libraries (solders)
+- requests
+- base58
 
 ### Installation
 
@@ -36,6 +42,8 @@ python server.py
 
 The server will run on `http://localhost:5000` by default.
 
+**Note:** The server can be deployed to Railway or similar platforms. It automatically detects the `PORT` environment variable and supports `X-Forwarded-Proto` headers for HTTPS.
+
 ## JavaScript Client
 
 The modular JavaScript client (`pumpfun-client.js`) can be integrated into any web application. It uses Phantom wallet for transaction signing and works entirely in the browser using CDN-loaded libraries.
@@ -46,14 +54,18 @@ The modular JavaScript client (`pumpfun-client.js`) can be integrated into any w
 
 ```html
 <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-<script src="https://unpkg.com/bs58@latest/dist/bs58.bundle.min.js"></script>
+<!-- bs58 can be loaded from CDN or implemented inline (see example.html) -->
+<script src="https://cdn.jsdelivr.net/npm/bs58@5.0.0/dist/bs58.bundle.min.js"></script>
+<!-- Or use the inline implementation from example.html -->
 <script src="pumpfun-client.js"></script>
 ```
+
+**Note:** The `example.html` file includes an inline base58 implementation to avoid CDN issues. You can use either approach.
 
 2. Use the client in your code:
 
 ```javascript
-// Initialize client
+// Initialize client (server URL is optional, defaults to http://localhost:5000)
 const client = new PumpFunClient('http://localhost:5000');
 
 // Connect Phantom wallet
@@ -63,12 +75,13 @@ await client.connectWallet();
 const result = await client.createToken({
     name: 'My Token',
     symbol: 'MTK',
-    description: 'A cool token',
-    image: imageFile,  // File object from input
-    amount: 0.1  // SOL
+    description: 'A cool token',  // Optional
+    image: imageFile,  // File or Blob object
+    amount: 0.1  // Optional: Initial amount in SOL (defaults to 0)
 });
 
 console.log('Transaction:', result.signature);
+console.log('Mint Public Key:', result.mint_public_key);
 console.log('View on Solscan:', result.transaction_url);
 ```
 
@@ -110,11 +123,11 @@ Complete flow: create, sign, and broadcast a token creation transaction.
 
 **Parameters:**
 - `params` (Object):
-  - `name` (string): Token name
-  - `symbol` (string): Token symbol
+  - `name` (string, required): Token name
+  - `symbol` (string, required): Token symbol
   - `description` (string, optional): Token description
-  - `image` (File|Blob): Image file for the token
-  - `amount` (number): Initial amount in SOL
+  - `image` (File|Blob, required): Image file for the token
+  - `amount` (number, optional): Initial amount in SOL (defaults to 0 if not provided)
 - `onProgress` (Function, optional): Progress callback `(step, message) => void`
   - Steps: `'creating'`, `'signing'`, `'broadcasting'`, `'complete'`, `'error'`
 
@@ -125,6 +138,36 @@ Complete flow: create, sign, and broadcast a token creation transaction.
 
 **Throws:** Error if wallet not connected or transaction fails
 
+#### `createTransaction(params)`
+
+Create an unsigned transaction for token creation (lower-level method).
+
+**Parameters:** Same as `createToken` params
+
+**Returns:** `Promise<Object>` with:
+- `unsigned_tx`: Base64 encoded unsigned transaction
+- `mint_keypair`: Base58 encoded mint keypair
+- `mint_public_key`: Mint account public key
+
+#### `signTransaction(unsignedTxBase64, mintKeypairBase58)`
+
+Sign a transaction with Phantom wallet and mint keypair.
+
+**Parameters:**
+- `unsignedTxBase64` (string): Base64 encoded unsigned transaction
+- `mintKeypairBase58` (string): Base58 encoded mint keypair
+
+**Returns:** `Promise<VersionedTransaction>` - Signed transaction
+
+#### `broadcastTransaction(signedTx)`
+
+Broadcast a signed transaction to the Solana network.
+
+**Parameters:**
+- `signedTx` (VersionedTransaction): Signed transaction object
+
+**Returns:** `Promise<Object>` with transaction signature and URL
+
 #### `checkHealth()`
 
 Check if the server is running and healthy.
@@ -133,15 +176,38 @@ Check if the server is running and healthy.
 
 ### Example Usage
 
-See `example.html` for a complete working example with a user interface.
-
-To run the example:
+The server can serve the example HTML page directly. Simply navigate to the root URL:
 
 1. Start the Python server: `python server.py`
-2. Open `example.html` in a web browser (with Phantom wallet installed)
+2. Open `http://localhost:5000` in a web browser (with Phantom wallet installed)
 3. Connect your wallet and create a token!
 
+**Features of the example:**
+- Image preview functionality
+- Support for base64 images via `?image_token=<token>` query parameter
+- Progress indicators during token creation
+- Automatic server URL detection
+- Wallet connection status display
+- Transaction result display with links to Solscan and Pump.fun
+
+You can also open `example.html` directly in a browser, but you'll need to ensure the server is running and update the server URL manually.
+
 ## Server API Endpoints
+
+### `GET /`
+
+Serves the example HTML page with server URL and optional base64 image injected.
+
+**Query Parameters:**
+- `image_token` (string, optional): Token to retrieve cached image
+
+**Response:** HTML page with injected `window.SERVER_URL` and `window.BASE64_IMAGE` variables
+
+### `GET /pumpfun-client.js`
+
+Serves the JavaScript client library.
+
+**Response:** JavaScript file content
 
 ### `GET /health`
 
@@ -154,6 +220,27 @@ Health check endpoint.
 }
 ```
 
+### `POST /upload_image`
+
+Upload a base64 image and receive a token for later retrieval.
+
+**Request:** `application/json`
+```json
+{
+  "image": "data:image/png;base64,..."  // Base64 encoded image
+}
+```
+
+**Response:**
+```json
+{
+  "token": "uuid-token-string",
+  "status": "success"
+}
+```
+
+**Note:** Images are cached in memory with a 1-hour TTL. Use the token with the `?image_token=<token>` query parameter on the root endpoint.
+
 ### `POST /create_tx`
 
 Create an unsigned transaction for token creation.
@@ -163,7 +250,7 @@ Create an unsigned transaction for token creation.
 - `symbol` (string, required): Token symbol
 - `description` (string, optional): Token description
 - `image` (file, required): Token image file
-- `amount` (string, required): Initial amount in SOL
+- `amount` (string, optional): Initial amount in SOL (defaults to "0" if not provided)
 - `user_public_key` (string, required): User's Solana public key (base58)
 
 **Response:**
@@ -174,6 +261,10 @@ Create an unsigned transaction for token creation.
   "mint_public_key": "mint_public_key_string"
 }
 ```
+
+**Error Responses:**
+- `400`: Missing required fields or invalid input
+- `500`: Server error during transaction creation
 
 ### `POST /broadcast_tx`
 
@@ -194,6 +285,10 @@ Broadcast a signed transaction to the Solana network.
   "transaction_url": "https://solscan.io/tx/..."
 }
 ```
+
+**Error Responses:**
+- `400`: Invalid transaction data
+- `500`: Failed to broadcast transaction
 
 ## Integration Examples
 
@@ -276,6 +371,28 @@ export default {
 };
 ```
 
+## Deployment
+
+### Railway
+
+The server is configured to work with Railway deployment:
+
+1. Set the `PORT` environment variable (Railway sets this automatically)
+2. Set `FLASK_DEBUG=false` for production (or `true` for debugging)
+3. The server automatically detects HTTPS via `X-Forwarded-Proto` header
+
+### Environment Variables
+
+- `PORT`: Server port (defaults to 5000)
+- `FLASK_DEBUG`: Enable Flask debug mode (defaults to `False`)
+
+### Image Caching
+
+Images uploaded via `/upload_image` are cached in memory with a 1-hour TTL. For production deployments with high traffic, consider:
+- Using Redis or similar external cache
+- Implementing persistent storage for images
+- Adjusting `IMAGE_CACHE_TTL` in `server.py`
+
 ## Security Notes
 
 - **Never expose private keys** in client-side code
@@ -283,6 +400,22 @@ export default {
 - The mint keypair is generated server-side and only the private key is sent to the client for signing
 - Ensure your server is running over HTTPS in production
 - Validate all inputs on both client and server side
+- Image cache is stored in memory - consider external storage for production
+- CORS is enabled for all origins - restrict in production if needed
+
+## Architecture
+
+The application consists of:
+
+- **server.py**: Flask server that handles API requests and serves the HTML page
+- **pumpfun-client.js**: Browser-side JavaScript client for interacting with the server and Phantom wallet
+- **blockchain.py**: Core blockchain logic for creating and broadcasting transactions
+- **example.html**: Complete example UI demonstrating token creation
+
+The server acts as a proxy between the client and PumpFun's APIs, handling:
+- Image upload to IPFS
+- Transaction creation via PumpFun API
+- Transaction broadcasting to Solana network
 
 ## License
 
